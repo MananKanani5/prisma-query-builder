@@ -4,6 +4,10 @@ A **Lightweight** but powerful query builder that removes the need to manually w
 
 You configure **what is allowed per API/service**, and the package builds **safe Prisma queries** from HTTP query parameters.
 
+
+> ✅ **Listed in the Prisma Ecosystem**  
+> https://www.prisma.io/ecosystem
+
 ---
 
 ## 📌 What This Package Does
