@@ -1,6 +1,6 @@
 {
   "name": "prisma-qb",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Converts HTTP query parameters into Prisma-compatible where and orderBy objects. Zero dependencies.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
