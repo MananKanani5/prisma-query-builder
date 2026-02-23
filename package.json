@@ -1,7 +1,7 @@
 {
   "name": "prisma-qb",
-  "version": "1.0.2",
-  "description": "Converts HTTP query parameters into Prisma-compatible where and orderBy objects. Zero dependencies.",
+  "version": "1.0.3",
+  "description": "A lightweight, strict Prisma query builder that converts HTTP query parameters into safe where and orderBy objects. Zero dependencies.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -12,17 +12,23 @@
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build"
   },
-  "keywords": [
+  "repository": {
+  "type": "git",
+  "url": "https://github.com/MananKanani5/prisma-qb"
+  },
+    "keywords": [
     "prisma",
+    "prisma-query",
+    "prisma-query-builder",
     "query-builder",
+    "rest-api",
     "filter",
-    "sort",
+    "sorting",
     "search",
+    "backend",
     "typescript",
-    "orm",
-    "database",
-    "api",
-    "rest"
+    "node",
+    "zero-dependencies"
   ],
   "author": "Manan Kanani",
   "license": "MIT",

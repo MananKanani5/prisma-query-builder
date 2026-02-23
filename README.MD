@@ -1,78 +1,59 @@
 # Prisma Query Builder
 
-A **Lightweight** but powerful query builder that removes the need to manually write **sorting, searching, and filtering logic** in backend services.
+![TypeScript](https://img.shields.io/badge/TypeScript-Supported-blue)
+![Prisma](https://img.shields.io/badge/Prisma-Compatible-2D3748)
 
-You configure **what is allowed per API/service**, and the package builds **safe Prisma queries** from HTTP query parameters.
+A lightweight, opinionated utility that converts HTTP query parameters into **safe, validated Prisma `where` and `orderBy` objects**.
 
+It eliminates repetitive filtering, searching, sorting, and validation logic across backend services.
 
-> ✅ **Listed in the Prisma Ecosystem**  
+> ✅ Listed in the Prisma Ecosystem  
 > https://www.prisma.io/ecosystem
 
 ---
 
-## 📌 What This Package Does
+# 🚀 What Problem Does This Solve?
 
-This package converts HTTP query parameters into Prisma-compatible:
+Most backend services repeatedly implement:
+
+- Manual filter parsing
+- Manual sort parsing
+- Search logic
+- Nested relation handling
+- Query validation
+- Type conversions (date, boolean, enum, number)
+- Edge-case handling
+
+This often leads to:
+
+- Duplicate logic
+- Silent failures
+- Inconsistent behavior
+- Hard-to-maintain services
+
+This package centralizes and standardizes that logic.
+
+---
+
+# 🧠 What This Package Does
+
+It converts HTTP query parameters into:
 
 - `where`
 - `orderBy`
+- optional `meta` (search warnings)
 
-So you don’t have to manually write:
-- filtering logic
-- sorting logic
-- searching logic
-- query validation logic
-- nested Prisma query construction
+It does NOT:
 
----
+- Execute Prisma queries
+- Replace Prisma
+- Act as an ORM
 
-## 🤔 Why Use This?
-
-Without this package, every service usually:
-- reimplements filtering logic
-- reimplements sorting logic
-- reimplements search logic
-- handles edge cases differently
-- silently ignores invalid input
-
-With this package:
-- logic is centralized
-- behavior is consistent
-- invalid input fails early
-- services stay clean and readable
+It is strictly a query builder.
 
 ---
 
-## 🧠 Important Design Principle
-
-> **Query rules are defined per service.**
-
-Each endpoint decides:
-- which fields are filterable
-- which fields are searchable
-- which fields are sortable
-
-This is intentional and makes the package:
-- safer
-- flexible
-- suitable for large codebases
-
----
-
-## ✨ Key Features
-
-- ✅ No manual filter logic
-- ✅ No manual sort logic
-- ✅ No manual search logic
-- ✅ Strict mode enabled by default
-- ✅ Nested relation support
-- ✅ Works with any Prisma model
-- ✅ JavaScript & TypeScript support
-- ❌ Does not execute queries
-
----
-
-## 📦 Installation
+# 📦 Installation
 
 ```bash
 npm install prisma-qb
@@ -80,148 +61,157 @@ npm install prisma-qb
 
 ---
 
-## 🚀 Basic Usage
+# ⚡ Quick Start
 
 ```ts
 import { buildPrismaQuery } from "prisma-qb";
 
 const { where, orderBy } = buildPrismaQuery({
   query: req.query,
-  filterFields: [
-    { key: "isActive", field: "isActive", type: "boolean" }
-  ]
+  filterFields: [{ key: "isActive", field: "isActive", type: "boolean" }],
 });
 
 await prisma.user.findMany({
   where,
-  orderBy
+  orderBy,
 });
 ```
 
+That’s it.
+
 ---
 
-## 🔍 Search
+# 🎛 Core Design Principle
 
-Search is type-aware and OR-based.
+Each endpoint explicitly defines:
 
-- All configured search fields are combined using OR
-- If some fields are incompatible, they are skipped
-- If all fields are incompatible, an error is thrown
-- By default, fields are treated as string unless a type is provided
+- Which fields are filterable
+- Which fields are searchable
+- Which fields are sortable
+
+The builder enforces those rules.
 
 This ensures:
 
-- flexible searching
-- no broken queries
-- no silent failures
+- Safe APIs
+- Predictable behavior
+- Clean services
+- No accidental data exposure
 
-### Supported Search Types
+---
 
-- Case-insensitive text search
-- Multiple fields
-- Nested relation fields
-- Custom operators per field
+# 🔍 Search
 
-### Supported Data Types
+Search is:
+
+- OR-based
+- Type-aware
+- Strict by default
+- Fail-safe
+
+If a search value is incompatible with a field:
+
+- That field is skipped
+- The skip is reported in `meta`
+
+If all fields are incompatible:
+
+- The query fails early
+
+---
+
+## Supported Search Types
 
 - `string` (default)
 - `number`
 - `boolean`
 - `enum`
 
-### Supported Operators (string only)
+---
+
+## Supported String Operators
 
 - `contains` (default)
 - `startsWith`
 - `endsWith`
 - `equals`
 
-Search operators cannot be used with `number`, `boolean`, or `enum` fields. Doing so throws an error in strict mode.
+Operators cannot be used on non-string fields.
 
 ---
 
-### Search Configuration
+## Search Configuration
 
 ```ts
 searchFields: [
-  { field: "firstName" },                       // string (default)
-  { field: "email", operator: "startsWith" },   // string with operator
-  { field: "id", type: "number" },              // number search
-  { field: "isActive", type: "boolean" },       // boolean search
-  { field: "status", type: "enum", enumValues: ["ACTIVE", "INACTIVE"] }
-]
+  { field: "firstName" }, // string (default)
+  { field: "email", operator: "startsWith" }, // string with operator
+  { field: "id", type: "number" }, // number
+  { field: "isActive", type: "boolean" }, // boolean
+  { field: "status", type: "enum", enumValues: ["ACTIVE", "INACTIVE"] },
+];
 ```
 
 ---
 
-### Search Query Example
+## Example Request
 
-```http
+```
 GET /users?search=john
 ```
 
 ---
 
-### Generated Prisma Query
+## Generated Prisma
 
 ```ts
 {
-  OR: [
-    { firstName: { contains: "john", mode: "insensitive" } },
-    { email: { startsWith: "john", mode: "insensitive" } }
-  ]
+  where: {
+    AND: [
+      {
+        OR: [
+          { firstName: { contains: "john", mode: "insensitive" } },
+          { email: { startsWith: "john", mode: "insensitive" } },
+        ],
+      },
+    ];
+  }
 }
 ```
-> Only compatible fields participate in the query.
 
 ---
 
-### Mixed-Type Search Behavior
+## `meta` Return Structure
 
-If a search value is incompatible with some fields:
-- compatible fields are applied
-- incompatible fields are skipped
-- skipped fields are reported via `meta`
+If some fields are incompatible:
 
-If all fields are incompatible, the query fails early.
-
-Example `meta` output:
-
-```
+```json
 {
-  meta: {
-    ignoredSearchFields: [
+  "meta": {
+    "ignoredSearchFields": [
       {
-        field: "id",
-        value: "john",
-        reason: "INVALID_SEARCH_NUMBER"
+        "field": "id",
+        "value": "john",
+        "reason": "INVALID_SEARCH_NUMBER"
       }
     ]
   }
 }
-
 ```
-> `meta` is returned alongside `where` and `orderBy` from `buildPrismaQuery`.
 
 ---
 
-## 🎛 Filters
+# 🎛 Filters
 
-### Supported Filter Operations
+Filters support:
 
-This package supports the following **filter operations**:
-
-- **Exact match**
-- **IN (comma-separated values)**
-- **Range (`_min` / `_max`)**
-
-These operations are automatically applied based on the query parameters.
+- Exact match
+- IN (comma-separated values)
+- Range (`_min`, `_max`)
 
 ---
 
-### Supported Data Types
-
-Filters can be applied on fields of the following types:
+## Supported Types
 
 - `string`
 - `number`
@@ -231,34 +221,41 @@ Filters can be applied on fields of the following types:
 
 ---
 
-### Filter Configuration
+## Filter Configuration
 
 ```ts
 filterFields: [
-  { key: "status", field: "status", type: "enum", enumValues: ["ACTIVE", "INACTIVE"] },
+  {
+    key: "status",
+    field: "status",
+    type: "enum",
+    enumValues: ["ACTIVE", "INACTIVE"],
+  },
   { key: "age", field: "age", type: "number" },
   { key: "isActive", field: "isActive", type: "boolean" },
-  { key: "created_at", field: "createdAt", type: "date" }
-]
+  { key: "created_at", field: "createdAt", type: "date" },
+];
 ```
 
 ---
 
-### Exact Match Filter
+## Exact Match
 
-```http
+```
 GET /users?isActive=true
 ```
 
 ```ts
-{ isActive: true }
+{
+  isActive: true
+}
 ```
 
 ---
 
-### IN Filter (comma-separated values)
+## IN Filter
 
-```http
+```
 GET /users?status=ACTIVE,INACTIVE
 ```
 
@@ -268,125 +265,182 @@ GET /users?status=ACTIVE,INACTIVE
 
 ---
 
-### Range Filters (`_min` / `_max`)
+## Range Filter
 
-```http
-GET /users?created_at_min=2024-01-01&created_at_max=2024-01-31
+```
+GET /users?age_min=18&age_max=30
 ```
 
 ```ts
 {
-  createdAt: {
-    gte: new Date("2024-01-01"),
-    lte: new Date("2024-01-31")
+  age: {
+    gte: 18,
+    lte: 30
   }
 }
 ```
 
-> Exact value and range filters **cannot** be used together.
+Exact value and range filters cannot be used together.
 
 ---
 
-## 🔃 Sorting
+# 🔃 Sorting
 
-### Supported Sort Features
+Supports:
 
-- Single field sorting
-- Multiple field sorting
-- Ascending / descending order
-- Nested relation sorting
-- Default sort support
+- Single field
+- Multiple fields
+- Ascending / Descending
+- Nested relations
+- Default sort
 
 ---
 
-### Sort Configuration
+## Sort Configuration
 
 ```ts
 sortFields: [
   { key: "firstName", field: "firstName" },
   { key: "createdAt", field: "createdAt" },
-  { key: "departmentName", model: "department", field: "departmentName" }
+  { key: "departmentName", model: "department", field: "departmentName" },
 ]
 ```
 
 ---
 
-### Sort Query Example
+## Sort Request
 
-```http
+```
 GET /users?sort=createdAt:desc,firstName:asc
 ```
 
 ---
 
-### Default Sort
+## Default Sort
 
 ```ts
 defaultSort: { key: "createdAt", order: "desc" }
 ```
 
+If no sort is provided, default sort is applied.
+
 ---
 
-## 🧬 Nested Relations
+# 🧬 Nested Relations
 
-Nested relations work across **search**, **filter**, and **sort**.
+Nested relations are supported in:
+
+- Search
+- Filters
+- Sorting
+
+Use `model` to define relation path.
 
 ```ts
 filterFields: [
-  { key: "departmentId", model: "department", field: "id", type: "number" }
-]
+  { key: "departmentId", model: "department", field: "id", type: "number" },
+];
 ```
 
-```http
-GET /users?departmentId=3
+Automatically generates:
+
+```ts
+{
+  department: {
+    id: 3
+  }
+}
 ```
 
-Automatically generates nested Prisma queries.
+Nested paths also support dot notation internally.
 
 ---
 
-## 🔑 Allowed Query Keys
+# 🗑 Soft Delete Support
 
-By default, strict mode only allows known query parameters.
+You can automatically enforce soft delete conditions.
 
-To allow additional parameters (e.g. pagination):
-
-```
-buildPrismaQuery({
-  query,
-  allowedQueryKeys: ["page", "limit"]
-});
+```ts
+softDelete: {
+  field: "isDeleted",
+  value: false
+}
 ```
 
->These keys are ignored by the builder but allowed to pass validation.
+This condition is always added to the final `AND` clause.
 
 ---
 
-## 🔒 Strict Mode (Default)
+# 🔒 Strict Mode (Default)
 
-Strict mode is enabled by default.
+Strict mode prevents:
 
-It prevents:
-- ❌ Unknown query parameters
-- ❌ Invalid filter keys
-- ❌ Invalid sort keys
-- ❌ Invalid search operators
-- ❌ Invalid enum / date / boolean values
-- ❌ Conflicting range usage
+- Unknown query parameters
+- Invalid filter keys
+- Invalid sort keys
+- Invalid search operators
+- Invalid enum values
+- Invalid boolean values
+- Invalid date values
+- Conflicting range usage
 
 Disable only if absolutely required:
 
 ```ts
-buildPrismaQuery({ query, strict: false });
+buildPrismaQuery({
+  query,
+  strict: false,
+});
 ```
 
 ---
 
-## 🧪 Error Handling
+# 🔑 Allowed Query Keys
 
-All errors are thrown as `QueryBuilderError`.
+Allow extra query parameters without failing strict validation.
 
-Example error:
+```ts
+buildPrismaQuery({
+  query,
+  allowedQueryKeys: ["page", "limit"],
+});
+```
+
+These keys are allowed but ignored by the builder.
+
+---
+
+# 🧩 Return Structure
+
+`buildPrismaQuery` returns:
+
+```ts
+{
+  where,
+  orderBy,
+  meta? // optional
+}
+```
+
+Where structure is composed as:
+
+```ts
+{
+  AND: [
+    softDeleteCondition?,
+    filters?,
+    { OR: searchConditions }?
+  ]
+}
+```
+
+---
+
+# 🧪 Error Handling
+
+All errors throw `QueryBuilderError`.
+
+Example:
 
 ```json
 {
@@ -398,31 +452,70 @@ Example error:
 }
 ```
 
+The system always fails early and never silently ignores invalid input.
+
 ---
 
-## 🧠 Design Philosophy
+# 🏗 Design Philosophy
 
 - Explicit configuration
 - Fail early
 - No silent behavior
 - Prisma-first
+- Minimal abstraction
 - Service-level control
+- No feature bloat
 
 ---
 
-## ⚠️ Limitations
+# ⚠️ Limitations
 
 - Prisma only
-- Not an ORM replacement
 - Does not execute database queries
 
 ---
 
-## 👨🏽‍💻 About the Developer
+# 📘 Full Example
 
-I’m a **Full Stack Developer** building reliable and scalable web applications since 2020. I enjoy working across the entire stack—from UI design to backend logic—with a strong focus on clean architecture, performance, and maintainability. I regularly practice DSA to sharpen problem-solving skills and stay technically strong. Always open to meaningful collaborations and interesting projects.
+```ts
+import { buildPrismaQuery } from "prisma-qb";
 
-**Profiles:**  
-🌐 Portfolio: https://manankanani.in  
-💻 GitHub: https://github.com/MananKanani5  
-🔗 LinkedIn: https://www.linkedin.com/in/manan-kanani/
+const { where, orderBy } = buildPrismaQuery({
+  query: req.query,
+
+  searchFields: [{ field: "firstName" }, { field: "email" }],
+
+  filterFields: [
+    {
+      key: "status",
+      field: "status",
+      type: "enum",
+      enumValues: ["ACTIVE", "INACTIVE"],
+    },
+    { key: "age", field: "age", type: "number" },
+  ],
+
+  sortFields: [{ key: "createdAt", field: "createdAt" }],
+
+  defaultSort: { key: "createdAt", order: "desc" },
+
+  softDelete: {
+    field: "isDeleted",
+    value: false,
+  },
+});
+```
+
+---
+
+# 👨🏽‍💻 Author
+
+Full Stack Developer building scalable applications since 2020 with a strong focus on clean architecture, performance, and maintainability.
+
+🌐 https://manankanani.in
+💻 https://github.com/MananKanani5
+🔗 https://www.linkedin.com/in/manan-kanani/
+
+```
+
+```
