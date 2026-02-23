@@ -515,7 +515,3 @@ Full Stack Developer building scalable applications since 2020 with a strong foc
 🌐 https://manankanani.in
 💻 https://github.com/MananKanani5
 🔗 https://www.linkedin.com/in/manan-kanani/
-
-```
-
-```
